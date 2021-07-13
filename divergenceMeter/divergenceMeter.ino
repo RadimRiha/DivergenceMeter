@@ -99,6 +99,8 @@ uint8_t displayContent[8] = {12, 12, 12, 12, 12, 12, 12, 12};  //10 - PL, 11 - P
 
 uint8_t displayBrightness[8] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
+uint8_t displayState = 0b11111111;  //8 PWM channels for each nixie (N7...N0)
+
 uint8_t pinMap[8][13] = {
   {N0_0, N0_1, N0_2, N0_3, N0_4, N0_5, N0_6, N0_7, N0_8, N0_9, N0_PL, N0_PR, 0xFF},
   {N1_0, N1_1, N1_2, N1_3, N1_4, N1_5, N1_6, N1_7, N1_8, N1_9, N1_PL, N1_PR, 0xFF},
@@ -110,16 +112,36 @@ uint8_t pinMap[8][13] = {
   {N7_0, N7_1, N7_2, N7_3, N7_4, N7_5, N7_6, N7_7, N7_8, N7_9, N7_PL, N7_PR, 0xFF}
 };
 
-void assembleShift() {
-  uint16_t data = 0;  //only 12 bits used
-  for(uint8_t i = 0; i < 8; i++) {
-    if(pinMap[i][displayContent[i]] != 0xFF) data |= (1UL << pinMap[i][displayContent[i]]);
+
+void shiftOne(uint16_t data) {
+  for(uint8_t i = 0; i < 12; i++) { //12 bits per nixie
+    if(data & (1 << i)) PORTB |= 0b00000001;
+    else PORTB &= ~0b00000001;
   }
 }
 
-void setup() {
-
+void assembleShift() {
+  for(uint8_t n = 0; n < 8; n++) {      //each nixie
+    for(uint8_t b = 0; b < 12; b++) {   //12 bits per nixie
+      //set data
+      if((pinMap[n][displayContent[n]] - n*12) == b] && (displayState & (1 << n)) PORTB |= 0b00000001;
+      else PORTB &= ~0b00000001;
+      //shift one
+      PORTB |= 0b00000010;
+      PORTB &= ~0b00000010;
+    }
+  }
+  //confirm
+  PORTB |= 0b00000100;
+  PORTB &= ~0b00000100;
 }
-void loop() {
 
+void setup() {
+  pinMode(D8, OUTPUT);
+  pinMode(D9, OUTPUT);
+  pinMode(D10, OUTPUT);
+}
+
+void loop() {
+  
 }
