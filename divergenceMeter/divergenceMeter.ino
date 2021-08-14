@@ -97,11 +97,13 @@
 
 #define NUM_OF_NIXIES 8
 uint8_t displayContent[NUM_OF_NIXIES] = {0, 0, 0, 0, 0, 0, 0, 0};  //10 - PL, 11 - PR, 12 - empty
-uint8_t displayBrightness[NUM_OF_NIXIES] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+uint8_t displayBrightness[NUM_OF_NIXIES] = {50, 50, 50, 50, 50, 50, 50, 50};
 
 #define NUM_OF_REGISTERS 12
 uint8_t shiftState[NUM_OF_REGISTERS] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 uint8_t displayState = 0b11111111;    //8 PWM channels for each nixie (N7...N0)
+#define BRIGHTNESS_LEVELS 100
+volatile uint8_t PWMcounter = 0;
 
 uint8_t pinMap[8][13] = {
   {N0_0, N0_1, N0_2, N0_3, N0_4, N0_5, N0_6, N0_7, N0_8, N0_9, N0_PL, N0_PR, 0xFF},
@@ -113,6 +115,16 @@ uint8_t pinMap[8][13] = {
   {N6_0, N6_1, N6_2, N6_3, N6_4, N6_5, N6_6, N6_7, N6_8, N6_9, N6_PL, N6_PR, 0xFF},
   {N7_0, N7_1, N7_2, N7_3, N7_4, N7_5, N7_6, N7_7, N7_8, N7_9, N7_PL, N7_PR, 0xFF}
 };
+
+ISR(TIMER1_COMPA_vect) {
+  for(uint8_t n = 0; n < NUM_OF_NIXIES; n++) {
+    if(PWMcounter < displayBrightness[n]) displayState |= (1 << n);
+    else displayState &= ~(1 << n);
+  }
+  PWMcounter++;
+  if(PWMcounter >= BRIGHTNESS_LEVELS) PWMcounter = 0;
+  generateShiftState();
+}
 
 void generateShiftState() {
   for(uint8_t i = 0; i < NUM_OF_REGISTERS; i++) {   //clear shiftState
@@ -149,9 +161,22 @@ void setup() {
   pinMode(8, OUTPUT);
   pinMode(9, OUTPUT);
   pinMode(10, OUTPUT);
+
+  cli();
+  TCCR1A = 0;
+  TCCR1B = 0;
+  TCNT1 = 0;
+  // 3000 Hz (16000000/((5332+1)*1))
+  OCR1A = 5332;
+  // CTC
+  TCCR1B |= (1 << WGM12);
+  // Prescaler 1
+  TCCR1B |= (1 << CS10);
+  // Output Compare Match A Interrupt Enable
+  TIMSK1 |= (1 << OCIE1A);
+  sei();
 }
 
 void loop() {
-  generateShiftState();
   shiftEverything();
 }
