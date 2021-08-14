@@ -1,105 +1,107 @@
-#define N0_0
-#define N0_1
-#define N0_2
-#define N0_3
-#define N0_4
-#define N0_5
-#define N0_6
-#define N0_7
-#define N0_8
-#define N0_9
-#define N0_PL
-#define N0_PR
-#define N1_0
-#define N1_1
-#define N1_2
-#define N1_3
-#define N1_4
-#define N1_5
-#define N1_6
-#define N1_7
-#define N1_8
-#define N1_9
-#define N1_PL
-#define N1_PR
-#define N2_0
-#define N2_1
-#define N2_2
-#define N2_3
-#define N2_4
-#define N2_5
-#define N2_6
-#define N2_7
-#define N2_8
-#define N2_9
-#define N2_PL
-#define N2_PR
-#define N3_0
-#define N3_1
-#define N3_2
-#define N3_3
-#define N3_4
-#define N3_5
-#define N3_6
-#define N3_7
-#define N3_8
-#define N3_9
-#define N3_PL
-#define N3_PR
-#define N4_0
-#define N4_1
-#define N4_2
-#define N4_3
-#define N4_4
-#define N4_5
-#define N4_6
-#define N4_7
-#define N4_8
-#define N4_9
-#define N4_PL
-#define N4_PR
-#define N5_0
-#define N5_1
-#define N5_2
-#define N5_3
-#define N5_4
-#define N5_5
-#define N5_6
-#define N5_7
-#define N5_8
-#define N5_9
-#define N5_PL
-#define N5_PR
-#define N6_0
-#define N6_1
-#define N6_2
-#define N6_3
-#define N6_4
-#define N6_5
-#define N6_6
-#define N6_7
-#define N6_8
-#define N6_9
-#define N6_PL
-#define N6_PR
-#define N7_0
-#define N7_1
-#define N7_2
-#define N7_3
-#define N7_4
-#define N7_5
-#define N7_6
-#define N7_7
-#define N7_8
-#define N7_9
-#define N7_PL
-#define N7_PR
+#define N7_0 13
+#define N7_1 6
+#define N7_2 5
+#define N7_3 4
+#define N7_4 3
+#define N7_5 2
+#define N7_6 1
+#define N7_7 0
+#define N7_8 15
+#define N7_9 14
+#define N7_PL 7
+#define N7_PR 12
+#define N6_0 17
+#define N6_1 10
+#define N6_2 9
+#define N6_3 8
+#define N6_4 23
+#define N6_5 22
+#define N6_6 21
+#define N6_7 20
+#define N6_8 19
+#define N6_9 18
+#define N6_PL 11
+#define N6_PR 16
+#define N5_0 37
+#define N5_1 30
+#define N5_2 29
+#define N5_3 28
+#define N5_4 27
+#define N5_5 26
+#define N5_6 25
+#define N5_7 24
+#define N5_8 39
+#define N5_9 38
+#define N5_PL 31
+#define N5_PR 36
+#define N4_0 41
+#define N4_1 34
+#define N4_2 33
+#define N4_3 32
+#define N4_4 47
+#define N4_5 46
+#define N4_6 45
+#define N4_7 44
+#define N4_8 43
+#define N4_9 42
+#define N4_PL 35
+#define N4_PR 40
+#define N3_0 61
+#define N3_1 54
+#define N3_2 53
+#define N3_3 52
+#define N3_4 51
+#define N3_5 50
+#define N3_6 49
+#define N3_7 48
+#define N3_8 63
+#define N3_9 62
+#define N3_PL 55
+#define N3_PR 60
+#define N2_0 65
+#define N2_1 58
+#define N2_2 57
+#define N2_3 56
+#define N2_4 71
+#define N2_5 70
+#define N2_6 69
+#define N2_7 68
+#define N2_8 67
+#define N2_9 66
+#define N2_PL 59
+#define N2_PR 64
+#define N1_0 85
+#define N1_1 78
+#define N1_2 77
+#define N1_3 76
+#define N1_4 75
+#define N1_5 74
+#define N1_6 73
+#define N1_7 72
+#define N1_8 87
+#define N1_9 86
+#define N1_PL 79
+#define N1_PR 84
+#define N0_0 89
+#define N0_1 82
+#define N0_2 81
+#define N0_3 80
+#define N0_4 95
+#define N0_5 94
+#define N0_6 93
+#define N0_7 92
+#define N0_8 91
+#define N0_9 90
+#define N0_PL 83
+#define N0_PR 88
 
-uint8_t displayContent[8] = {12, 12, 12, 12, 12, 12, 12, 12};  //10 - PL, 11 - PR, 12 - empty
+#define NUM_OF_NIXIES 8
+uint8_t displayContent[NUM_OF_NIXIES] = {0, 0, 0, 0, 0, 0, 0, 0};  //10 - PL, 11 - PR, 12 - empty
+uint8_t displayBrightness[NUM_OF_NIXIES] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-uint8_t displayBrightness[8] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-
-uint8_t displayState = 0b11111111;  //8 PWM channels for each nixie (N7...N0)
+#define NUM_OF_REGISTERS 12
+uint8_t shiftState[NUM_OF_REGISTERS] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+uint8_t displayState = 0b11111111;    //8 PWM channels for each nixie (N7...N0)
 
 uint8_t pinMap[8][13] = {
   {N0_0, N0_1, N0_2, N0_3, N0_4, N0_5, N0_6, N0_7, N0_8, N0_9, N0_PL, N0_PR, 0xFF},
@@ -112,23 +114,30 @@ uint8_t pinMap[8][13] = {
   {N7_0, N7_1, N7_2, N7_3, N7_4, N7_5, N7_6, N7_7, N7_8, N7_9, N7_PL, N7_PR, 0xFF}
 };
 
-
-void shiftOne(uint16_t data) {
-  for(uint8_t i = 0; i < 12; i++) { //12 bits per nixie
-    if(data & (1 << i)) PORTB |= 0b00000001;
-    else PORTB &= ~0b00000001;
+void generateShiftState() {
+  for(uint8_t i = 0; i < NUM_OF_REGISTERS; i++) {   //clear shiftState
+    shiftState[i] = 0x00;
+  }
+  for(uint8_t n = 0; n < NUM_OF_NIXIES; n++) {      //set digit of each nixie
+    if(displayState & (1 << n)){
+      uint8_t bitNumber = pinMap[n][displayContent[n]];
+      shiftState[bitNumber / 8] |= 1 << (bitNumber % 8);
+    }
   }
 }
 
-void assembleShift() {
-  for(uint8_t n = 0; n < 8; n++) {      //each nixie
-    for(uint8_t b = 0; b < 12; b++) {   //12 bits per nixie
+void shiftEverything() {
+  uint8_t currentRegisterState = shiftState[0];
+  for(uint8_t r = 0; r < NUM_OF_REGISTERS; r++) {   //each register
+    currentRegisterState = shiftState[r];
+    for(uint8_t b = 0; b < 8; b++) {                //8 bits per register
       //set data
-      if((pinMap[n][displayContent[n]] - n*12) == b] && (displayState & (1 << n)) PORTB |= 0b00000001;
-      else PORTB &= ~0b00000001;
+      PORTB &= ~0b00000001;
+      if(currentRegisterState & 0x01) PORTB |= 0b00000001;
       //shift one
       PORTB |= 0b00000010;
       PORTB &= ~0b00000010;
+      currentRegisterState = currentRegisterState >> 1;
     }
   }
   //confirm
@@ -137,11 +146,12 @@ void assembleShift() {
 }
 
 void setup() {
-  pinMode(D8, OUTPUT);
-  pinMode(D9, OUTPUT);
-  pinMode(D10, OUTPUT);
+  pinMode(8, OUTPUT);
+  pinMode(9, OUTPUT);
+  pinMode(10, OUTPUT);
 }
 
 void loop() {
-  
+  generateShiftState();
+  shiftEverything();
 }
