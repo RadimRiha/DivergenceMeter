@@ -11,7 +11,10 @@ volatile uint8_t displayState = 0b11111111;    //8 PWM channels for each nixie (
 volatile uint8_t PWMcounter = 0;
 
 #define MENU_CLOCK_DISP 0
+#define MENU_NUMBERS 1
 uint8_t menuState = MENU_CLOCK_DISP;
+
+uint32_t numbers[] = {296112, 312659, 283057, 259893, 342867, 245592, 283818, 351025, 236195};
 
 struct time {
   uint8_t hours;
@@ -30,7 +33,7 @@ struct settings {
 settings clockSettings = {0, 1, 50, 1};
 
 #define CLEANING_RATIO 300  //clean 1s for every 300s of run time
-unsigned long lastCleanTimestamp = 0;
+unsigned long digitCleaningTimestamp = clockSettings.cleaningInterval * 60000;
 
 uint8_t pinMap[8][13] = {
   {N0_0, N0_1, N0_2, N0_3, N0_4, N0_5, N0_6, N0_7, N0_8, N0_9, N0_PL, N0_PR, 0xFF},
@@ -116,15 +119,16 @@ void setBrightness(uint16_t value) {
 }
 
 void cathodeCleaning() {
-  if((millis() - lastCleanTimestamp) / 60000 >= clockSettings.cleaningInterval) {
+  if(millis() > digitCleaningTimestamp) {
     uint32_t cleaningTime = (uint32_t)clockSettings.cleaningInterval*60 * 1000 / CLEANING_RATIO;  //time to light up each digit [ms]
     setBrightness(100);
     for(uint8_t i = 0; i <= 11; i++) {
       for(uint8_t n = 0; n < NUM_OF_NIXIES; n++) displayContent[n] = i;
       delay(cleaningTime);
     }
+    for(uint8_t n = 0; n < NUM_OF_NIXIES; n++) displayContent[n] = 12;
     setBrightness(clockSettings.brightness);
-    lastCleanTimestamp = millis();
+    digitCleaningTimestamp = millis() + clockSettings.cleaningInterval * 60000;
   }
 }
 
@@ -159,8 +163,9 @@ void setup() {
 void loop() {
   updateInternalTime();
   cathodeCleaning();
+  
   switch (menuState) {
-    case MENU_CLOCK_DISP:
+    case MENU_CLOCK_DISP: {
       uint8_t compensatedHours = internalTime.hours;
       if(!clockSettings.format12_24) {
         compensatedHours = compensatedHours % 12;
@@ -176,6 +181,17 @@ void loop() {
       if(displayContent[7] == 0 && !clockSettings.leadingZero) {
         displayContent[7] = 12;
       }
-      break;
+    }break;
+    case MENU_NUMBERS:{
+      for(uint8_t i = 0; i < sizeof(numbers)/4; i++){
+        displayContent[0] = numbers[i] / 1 % 10;
+        displayContent[1] = numbers[i] / 10 % 10;
+        displayContent[2] = numbers[i] / 100 % 10;
+        displayContent[3] = numbers[i] / 1000 % 10;
+        displayContent[4] = numbers[i] / 10000 % 10;
+        displayContent[5] = numbers[i] / 100000;
+        delay(1000);
+      }
+    }break;
   }
 }
