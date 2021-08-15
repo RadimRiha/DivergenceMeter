@@ -1,106 +1,10 @@
-#define N7_0 13
-#define N7_1 6
-#define N7_2 5
-#define N7_3 4
-#define N7_4 3
-#define N7_5 2
-#define N7_6 1
-#define N7_7 0
-#define N7_8 15
-#define N7_9 14
-#define N7_PL 7
-#define N7_PR 12
-#define N6_0 17
-#define N6_1 10
-#define N6_2 9
-#define N6_3 8
-#define N6_4 23
-#define N6_5 22
-#define N6_6 21
-#define N6_7 20
-#define N6_8 19
-#define N6_9 18
-#define N6_PL 11
-#define N6_PR 16
-#define N5_0 37
-#define N5_1 30
-#define N5_2 29
-#define N5_3 28
-#define N5_4 27
-#define N5_5 26
-#define N5_6 25
-#define N5_7 24
-#define N5_8 39
-#define N5_9 38
-#define N5_PL 31
-#define N5_PR 36
-#define N4_0 41
-#define N4_1 34
-#define N4_2 33
-#define N4_3 32
-#define N4_4 47
-#define N4_5 46
-#define N4_6 45
-#define N4_7 44
-#define N4_8 43
-#define N4_9 42
-#define N4_PL 35
-#define N4_PR 40
-#define N3_0 61
-#define N3_1 54
-#define N3_2 53
-#define N3_3 52
-#define N3_4 51
-#define N3_5 50
-#define N3_6 49
-#define N3_7 48
-#define N3_8 63
-#define N3_9 62
-#define N3_PL 55
-#define N3_PR 60
-#define N2_0 65
-#define N2_1 58
-#define N2_2 57
-#define N2_3 56
-#define N2_4 71
-#define N2_5 70
-#define N2_6 69
-#define N2_7 68
-#define N2_8 67
-#define N2_9 66
-#define N2_PL 59
-#define N2_PR 64
-#define N1_0 85
-#define N1_1 78
-#define N1_2 77
-#define N1_3 76
-#define N1_4 75
-#define N1_5 74
-#define N1_6 73
-#define N1_7 72
-#define N1_8 87
-#define N1_9 86
-#define N1_PL 79
-#define N1_PR 84
-#define N0_0 89
-#define N0_1 82
-#define N0_2 81
-#define N0_3 80
-#define N0_4 95
-#define N0_5 94
-#define N0_6 93
-#define N0_7 92
-#define N0_8 91
-#define N0_9 90
-#define N0_PL 83
-#define N0_PR 88
+#include "hardwareDefinition.h"
 
-#define NUM_OF_NIXIES 8
-#define NUM_OF_REGISTERS 12
 #define BRIGHTNESS_LEVELS 50
+const uint8_t expBrightness[BRIGHTNESS_LEVELS] = {1,1,1,1,1,1,1,2,2,2,2,2,3,3,3,3,4,4,4,5,5,6,6,7,7,8,8,9,10,11,11,12,13,14,16,17,18,20,21,23,24,26,28,31,33,36,39,42,45,50};
 
-uint8_t displayContent[NUM_OF_NIXIES] = {12, 12, 12, 12, 12, 12, 12, 12};  //10 - PL, 11 - PR, 12 - empty
-uint8_t displayBrightness[NUM_OF_NIXIES] = {0, 0, 0, 0, 0, 0, 0, 0};
+uint8_t displayContent[NUM_OF_NIXIES] = {12, 12, 12, 12, 12, 12, 12, 12};   //10 - PL, 11 - PR, 12 - empty
+uint8_t displayBrightness[NUM_OF_NIXIES] = {0, 0, 0, 0, 0, 0, 0, 0};        //0-BRIGHTNESS_LEVELS
 
 volatile uint8_t shiftState[NUM_OF_REGISTERS] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 volatile uint8_t displayState = 0b11111111;    //8 PWM channels for each nixie (N7...N0)
@@ -114,15 +18,19 @@ struct time {
   uint8_t minutes;
   uint8_t seconds;
 };
-time internalTime = {15, 43, 0};
+time internalTime = {0, 0, 0};
 unsigned long lastMillisSecond = 0;
 
 struct settings {
-  bool leadingZero;     //06:00:00 vs 6:00:00
-  bool format12_24;     //0 - 12, 1 - 24
-  uint8_t brightness;   //0 - 100
+  bool leadingZero;         //06:00:00 vs 6:00:00
+  bool format12_24;         //0 - 12, 1 - 24
+  uint8_t brightness;       //0 - 100
+  uint8_t cleaningInterval; //time [minutes] between cleaning cycles
 };
-settings clockSettings = {0, 1, 50};
+settings clockSettings = {0, 1, 50, 1};
+
+#define CLEANING_RATIO 300  //clean 1s for every 300s of run time
+unsigned long lastCleanTimestamp = 0;
 
 uint8_t pinMap[8][13] = {
   {N0_0, N0_1, N0_2, N0_3, N0_4, N0_5, N0_6, N0_7, N0_8, N0_9, N0_PL, N0_PR, 0xFF},
@@ -139,7 +47,7 @@ ISR(TIMER1_COMPA_vect) {
   PORTB |= 0b00001000;  //DEBUG
   uint8_t prevDisplayState = displayState;
   for(uint8_t n = 0; n < NUM_OF_NIXIES; n++) {
-    if(PWMcounter < displayBrightness[n]) displayState |= (1 << n);
+    if(PWMcounter < expBrightness[displayBrightness[n]]) displayState |= (1 << n);
     else displayState &= ~(1 << n);
   }
   if(displayState != prevDisplayState || PWMcounter == 0) {
@@ -201,8 +109,22 @@ void updateInternalTime() {
 
 void setBrightness(uint16_t value) {
   uint8_t brightnessValue = value * BRIGHTNESS_LEVELS / 100;
+  if(brightnessValue > BRIGHTNESS_LEVELS - 1) brightnessValue = BRIGHTNESS_LEVELS - 1;
   for(uint8_t i = 0; i < NUM_OF_NIXIES; i++) {
     displayBrightness[i] = brightnessValue;
+  }
+}
+
+void cathodeCleaning() {
+  if((millis() - lastCleanTimestamp) / 60000 >= clockSettings.cleaningInterval) {
+    uint32_t cleaningTime = (uint32_t)clockSettings.cleaningInterval*60 * 1000 / CLEANING_RATIO;  //time to light up each digit [ms]
+    setBrightness(100);
+    for(uint8_t i = 0; i <= 11; i++) {
+      for(uint8_t n = 0; n < NUM_OF_NIXIES; n++) displayContent[n] = i;
+      delay(cleaningTime);
+    }
+    setBrightness(clockSettings.brightness);
+    lastCleanTimestamp = millis();
   }
 }
 
@@ -211,31 +133,22 @@ void setup() {
   pinMode(9, OUTPUT);
   pinMode(10, OUTPUT);
   pinMode(11, OUTPUT);
-  pinMode(12, OUTPUT);
-  
+
+  //PWM timer configuration
   cli();
   TCCR1A = 0;
   TCCR1B = 0;
   TCNT1 = 0;
-  OCR1A = 5000; //about 60Hz at 50 levels
-  // CTC
-  TCCR1B |= (1 << WGM12);
-  // Prescaler 1
-  TCCR1B |= (1 << CS10);
-  // Output Compare Match A Interrupt Enable
-  TIMSK1 |= (1 << OCIE1A);
+  OCR1A = 5000;             //about 60Hz at 50 levels
+  TCCR1B |= (1 << WGM12);   //CTC
+  TCCR1B |= (1 << CS10);    //Prescaler 1
+  TIMSK1 |= (1 << OCIE1A);  //Output Compare Match A IE
   sei();
-  
+
+  //startup sequence
   setBrightness(100);
   for(uint8_t i = 0; i <= 12; i++) {
-    displayContent[0] = i;
-    displayContent[1] = i;
-    displayContent[2] = i;
-    displayContent[3] = i;
-    displayContent[4] = i;
-    displayContent[5] = i;
-    displayContent[6] = i;
-    displayContent[7] = i;
+    for(uint8_t n = 0; n < NUM_OF_NIXIES; n++) displayContent[n] = i;
     delay(200);
   }
   
@@ -245,6 +158,7 @@ void setup() {
 
 void loop() {
   updateInternalTime();
+  cathodeCleaning();
   switch (menuState) {
     case MENU_CLOCK_DISP:
       uint8_t compensatedHours = internalTime.hours;
