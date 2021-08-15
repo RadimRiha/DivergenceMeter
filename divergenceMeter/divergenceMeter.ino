@@ -99,12 +99,30 @@
 #define NUM_OF_REGISTERS 12
 #define BRIGHTNESS_LEVELS 50
 
-uint8_t displayContent[NUM_OF_NIXIES] = {11, 10, 6, 4, 3, 2, 1, 0};  //10 - PL, 11 - PR, 12 - empty
-uint8_t displayBrightness[NUM_OF_NIXIES] = {50, 50, 50, 50, 50, 50, 50, 50};
+uint8_t displayContent[NUM_OF_NIXIES] = {12, 12, 12, 12, 12, 12, 12, 12};  //10 - PL, 11 - PR, 12 - empty
+uint8_t displayBrightness[NUM_OF_NIXIES] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 volatile uint8_t shiftState[NUM_OF_REGISTERS] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 volatile uint8_t displayState = 0b11111111;    //8 PWM channels for each nixie (N7...N0)
 volatile uint8_t PWMcounter = 0;
+
+#define MENU_CLOCK_DISP 0
+uint8_t menuState = MENU_CLOCK_DISP;
+
+struct time {
+  uint8_t hours;
+  uint8_t minutes;
+  uint8_t seconds;
+};
+time internalTime = {15, 43, 0};
+unsigned long lastMillisSecond = 0;
+
+struct settings {
+  bool leadingZero;     //06:00:00 vs 6:00:00
+  bool format12_24;     //0 - 12, 1 - 24
+  uint8_t brightness;   //0 - 100
+};
+settings clockSettings = {0, 1, 50};
 
 uint8_t pinMap[8][13] = {
   {N0_0, N0_1, N0_2, N0_3, N0_4, N0_5, N0_6, N0_7, N0_8, N0_9, N0_PL, N0_PR, 0xFF},
@@ -118,7 +136,7 @@ uint8_t pinMap[8][13] = {
 };
 
 ISR(TIMER1_COMPA_vect) {
-  PORTB |= 0b00001000;
+  PORTB |= 0b00001000;  //DEBUG
   uint8_t prevDisplayState = displayState;
   for(uint8_t n = 0; n < NUM_OF_NIXIES; n++) {
     if(PWMcounter < displayBrightness[n]) displayState |= (1 << n);
@@ -130,14 +148,12 @@ ISR(TIMER1_COMPA_vect) {
   }
   PWMcounter++;
   if(PWMcounter >= BRIGHTNESS_LEVELS) PWMcounter = 0;
-  PORTB &= ~0b00001000;
+  PORTB &= ~0b00001000; //DEBUG
 }
 
 void generateShiftState() {
-  for(uint8_t i = 0; i < NUM_OF_REGISTERS; i++) {   //clear shiftState
-    shiftState[i] = 0x00;
-  }
-  for(uint8_t n = 0; n < NUM_OF_NIXIES; n++) {      //set digit of each nixie
+  for(uint8_t i = 0; i < NUM_OF_REGISTERS; i++) shiftState[i] = 0x00;
+  for(uint8_t n = 0; n < NUM_OF_NIXIES; n++) {    //set digit of each nixie
     if(displayState & (1 << n)){
       uint8_t bitNumber = pinMap[n][displayContent[n]];
       if (bitNumber != 0xFF) shiftState[bitNumber / 8] |= 1 << (bitNumber % 8);
@@ -164,6 +180,32 @@ void shiftEverything() {
   PORTB &= ~0b00000100;
 }
 
+void updateInternalTime() {
+  unsigned long millisSecond = millis()/1000;
+  if(millisSecond != lastMillisSecond) {
+    internalTime.seconds++;
+    if(internalTime.seconds >= 60) {
+      internalTime.seconds = 0;
+      internalTime.minutes++;
+    }
+    if(internalTime.minutes >= 60) {
+      internalTime.minutes = 0;
+      internalTime.hours++;
+    }
+    if(internalTime.hours >= 24) {
+      internalTime.hours = 0;
+    }
+    lastMillisSecond = millisSecond;
+  }
+}
+
+void setBrightness(uint16_t value) {
+  uint8_t brightnessValue = value * BRIGHTNESS_LEVELS / 100;
+  for(uint8_t i = 0; i < NUM_OF_NIXIES; i++) {
+    displayBrightness[i] = brightnessValue;
+  }
+}
+
 void setup() {
   pinMode(8, OUTPUT);
   pinMode(9, OUTPUT);
@@ -183,9 +225,8 @@ void setup() {
   // Output Compare Match A Interrupt Enable
   TIMSK1 |= (1 << OCIE1A);
   sei();
-}
-
-void loop() {
+  
+  setBrightness(100);
   for(uint8_t i = 0; i <= 12; i++) {
     displayContent[0] = i;
     displayContent[1] = i;
@@ -195,6 +236,32 @@ void loop() {
     displayContent[5] = i;
     displayContent[6] = i;
     displayContent[7] = i;
-    delay(1000);
+    delay(200);
+  }
+  
+  //config defaults
+  setBrightness(clockSettings.brightness);
+}
+
+void loop() {
+  updateInternalTime();
+  switch (menuState) {
+    case MENU_CLOCK_DISP:
+      uint8_t compensatedHours = internalTime.hours;
+      if(!clockSettings.format12_24) {
+        compensatedHours = compensatedHours % 12;
+      }
+      displayContent[0] = internalTime.seconds%10;
+      displayContent[1] = internalTime.seconds/10;
+      displayContent[2] = 11;
+      displayContent[3] = internalTime.minutes%10;
+      displayContent[4] = internalTime.minutes/10;
+      displayContent[5] = 11;
+      displayContent[6] = compensatedHours%10;
+      displayContent[7] = compensatedHours/10;
+      if(displayContent[7] == 0 && !clockSettings.leadingZero) {
+        displayContent[7] = 12;
+      }
+      break;
   }
 }
