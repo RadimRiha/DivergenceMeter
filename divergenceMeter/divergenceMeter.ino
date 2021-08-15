@@ -96,13 +96,14 @@
 #define N0_PR 88
 
 #define NUM_OF_NIXIES 8
-uint8_t displayContent[NUM_OF_NIXIES] = {0, 0, 0, 0, 0, 0, 0, 0};  //10 - PL, 11 - PR, 12 - empty
+#define NUM_OF_REGISTERS 12
+#define BRIGHTNESS_LEVELS 50
+
+uint8_t displayContent[NUM_OF_NIXIES] = {11, 10, 6, 4, 3, 2, 1, 0};  //10 - PL, 11 - PR, 12 - empty
 uint8_t displayBrightness[NUM_OF_NIXIES] = {50, 50, 50, 50, 50, 50, 50, 50};
 
-#define NUM_OF_REGISTERS 12
-uint8_t shiftState[NUM_OF_REGISTERS] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-uint8_t displayState = 0b11111111;    //8 PWM channels for each nixie (N7...N0)
-#define BRIGHTNESS_LEVELS 100
+volatile uint8_t shiftState[NUM_OF_REGISTERS] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+volatile uint8_t displayState = 0b11111111;    //8 PWM channels for each nixie (N7...N0)
 volatile uint8_t PWMcounter = 0;
 
 uint8_t pinMap[8][13] = {
@@ -117,13 +118,19 @@ uint8_t pinMap[8][13] = {
 };
 
 ISR(TIMER1_COMPA_vect) {
+  PORTB |= 0b00001000;
+  uint8_t prevDisplayState = displayState;
   for(uint8_t n = 0; n < NUM_OF_NIXIES; n++) {
     if(PWMcounter < displayBrightness[n]) displayState |= (1 << n);
     else displayState &= ~(1 << n);
   }
+  if(displayState != prevDisplayState || PWMcounter == 0) {
+    generateShiftState();
+    shiftEverything();
+  }
   PWMcounter++;
   if(PWMcounter >= BRIGHTNESS_LEVELS) PWMcounter = 0;
-  generateShiftState();
+  PORTB &= ~0b00001000;
 }
 
 void generateShiftState() {
@@ -133,13 +140,13 @@ void generateShiftState() {
   for(uint8_t n = 0; n < NUM_OF_NIXIES; n++) {      //set digit of each nixie
     if(displayState & (1 << n)){
       uint8_t bitNumber = pinMap[n][displayContent[n]];
-      shiftState[bitNumber / 8] |= 1 << (bitNumber % 8);
+      if (bitNumber != 0xFF) shiftState[bitNumber / 8] |= 1 << (bitNumber % 8);
     }
   }
 }
 
 void shiftEverything() {
-  uint8_t currentRegisterState = shiftState[0];
+  uint8_t currentRegisterState;
   for(uint8_t r = 0; r < NUM_OF_REGISTERS; r++) {   //each register
     currentRegisterState = shiftState[r];
     for(uint8_t b = 0; b < 8; b++) {                //8 bits per register
@@ -161,13 +168,14 @@ void setup() {
   pinMode(8, OUTPUT);
   pinMode(9, OUTPUT);
   pinMode(10, OUTPUT);
-
+  pinMode(11, OUTPUT);
+  pinMode(12, OUTPUT);
+  
   cli();
   TCCR1A = 0;
   TCCR1B = 0;
   TCNT1 = 0;
-  // 3000 Hz (16000000/((5332+1)*1))
-  OCR1A = 5332;
+  OCR1A = 5000; //about 60Hz at 50 levels
   // CTC
   TCCR1B |= (1 << WGM12);
   // Prescaler 1
@@ -178,5 +186,15 @@ void setup() {
 }
 
 void loop() {
-  shiftEverything();
+  for(uint8_t i = 0; i <= 12; i++) {
+    displayContent[0] = i;
+    displayContent[1] = i;
+    displayContent[2] = i;
+    displayContent[3] = i;
+    displayContent[4] = i;
+    displayContent[5] = i;
+    displayContent[6] = i;
+    displayContent[7] = i;
+    delay(1000);
+  }
 }
